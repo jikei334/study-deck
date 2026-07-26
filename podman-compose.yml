@@ -3,6 +3,7 @@ version: '3.8'
 services:
   backend:
     build: ./backend
+    image: localhost/study-deck_backend:latest
     ports:
       - "3000:3000"
     volumes:
@@ -11,3 +12,11 @@ services:
       - DB_PATH=/app/data/study-deck.db
       - PORT=3000
       - CORS_ORIGIN=http://localhost:5173
+
+  frontend:
+    build: ./frontend
+    image: localhost/study-deck_frontend:latest
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
