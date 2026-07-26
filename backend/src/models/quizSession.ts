@@ -195,7 +195,7 @@ export function getSessionResult(id: number): SessionResult | undefined {
     JOIN choices sc  ON sc.id = qa.selected_choice_id
     JOIN choices cc  ON cc.question_id = qa.question_id AND cc.is_correct = 1
     WHERE qa.session_id = ?
-  `).all(id) as (SessionResultAnswer & { isCorrect: number })[];
+  `).all(id) as (Omit<SessionResultAnswer, 'isCorrect'> & { isCorrect: number })[];
 
   const categoryStats = db.prepare(`
     SELECT
