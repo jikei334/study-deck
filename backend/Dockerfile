@@ -12,6 +12,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
+COPY seeds ./seeds
 
 EXPOSE 3000
 
