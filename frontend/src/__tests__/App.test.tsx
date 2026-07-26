@@ -6,7 +6,7 @@ describe('App ルーティング', () => {
   it('ルートパス(/) で ExamSelectPage が表示される', () => {
     window.history.pushState({}, '', '/');
     render(<App />);
-    expect(screen.getByText('ExamSelectPage')).toBeInTheDocument();
+    expect(screen.getByText('study-deck')).toBeInTheDocument();
   });
 
   it('/admin で AdminPage が表示される', () => {
