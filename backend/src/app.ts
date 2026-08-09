@@ -20,6 +20,7 @@ app.use(
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
 app.route('/api/exams', exams);
 app.route('/api/exams/:examId/categories', categories);
+app.route('/api/categories', categories);
 app.route('/api/exams/:examId/stats', stats);
 app.route('/api/quiz', quiz);
 app.route('/api/exams/:examId/terms', terms);

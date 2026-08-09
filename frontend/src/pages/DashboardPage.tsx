@@ -76,6 +76,12 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-3 shrink-0">
             <button
+              onClick={() => navigate(`/admin?examId=${exam.id}`)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
+            >
+              管理
+            </button>
+            <button
               onClick={() => navigate(`/exams/${exam.id}/terms`)}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
             >
