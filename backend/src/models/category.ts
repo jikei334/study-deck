@@ -49,3 +49,22 @@ export function findCategoryById(id: number): CategoryRow | undefined {
     GROUP BY c.id
   `).get(id);
 }
+
+export function createCategory(examId: number, name: string, sortOrder: number): CategoryRow {
+  const res = db.prepare(
+    'INSERT INTO categories (exam_id, name, sort_order) VALUES (?, ?, ?)'
+  ).run(examId, name, sortOrder);
+  return findCategoryById(res.lastInsertRowid as number)!;
+}
+
+export function updateCategory(id: number, name: string, sortOrder: number): CategoryRow | undefined {
+  const result = db.prepare(
+    'UPDATE categories SET name = ?, sort_order = ? WHERE id = ?'
+  ).run(name, sortOrder, id);
+  if (result.changes === 0) return undefined;
+  return findCategoryById(id);
+}
+
+export function deleteCategory(id: number): boolean {
+  return db.prepare('DELETE FROM categories WHERE id = ?').run(id).changes > 0;
+}

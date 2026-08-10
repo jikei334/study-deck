@@ -127,3 +127,130 @@ describe('GET /api/exams/:examId/stats', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('POST /api/exams/:examId/categories', () => {
+  it('カテゴリを作成できる', async () => {
+    const { examId } = seedExamAndCategories();
+    const res = await app.request(`/api/exams/${examId}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '新カテゴリ', sortOrder: 3 }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.name).toBe('新カテゴリ');
+    expect(body.sortOrder).toBe(3);
+    expect(body.examId).toBe(examId);
+  });
+
+  it('sortOrder省略で0として作成される', async () => {
+    const { examId } = seedExamAndCategories();
+    const res = await app.request(`/api/exams/${examId}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'カテゴリX' }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.sortOrder).toBe(0);
+  });
+
+  it('名前が空で400', async () => {
+    const { examId } = seedExamAndCategories();
+    const res = await app.request(`/api/exams/${examId}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '', sortOrder: 1 }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('存在しない試験IDで404', async () => {
+    const res = await app.request('/api/exams/9999/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'テスト', sortOrder: 1 }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('SQLインジェクションを含む名前でも安全に作成できる', async () => {
+    const { examId } = seedExamAndCategories();
+    const malicious = "'; DROP TABLE categories; --";
+    const res = await app.request(`/api/exams/${examId}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: malicious, sortOrder: 1 }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.name).toBe(malicious);
+    const count = db.prepare('SELECT COUNT(*) as n FROM categories').get() as { n: number };
+    expect(count.n).toBeGreaterThan(0);
+  });
+});
+
+describe('PUT /api/categories/:categoryId', () => {
+  it('カテゴリを更新できる', async () => {
+    const { cat1Id } = seedExamAndCategories();
+    const res = await app.request(`/api/categories/${cat1Id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '更新カテゴリ', sortOrder: 10 }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.name).toBe('更新カテゴリ');
+    expect(body.sortOrder).toBe(10);
+  });
+
+  it('別の試験名でも更新できる', async () => {
+    const { cat2Id } = seedExamAndCategories();
+    const res = await app.request(`/api/categories/${cat2Id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'カテゴリB改', sortOrder: 2 }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).name).toBe('カテゴリB改');
+  });
+
+  it('存在しないカテゴリIDで404', async () => {
+    const res = await app.request('/api/categories/9999', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '更新', sortOrder: 1 }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('名前が空で400', async () => {
+    const { cat1Id } = seedExamAndCategories();
+    const res = await app.request(`/api/categories/${cat1Id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '', sortOrder: 1 }),
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('DELETE /api/categories/:categoryId', () => {
+  it('カテゴリを削除できる', async () => {
+    const { cat1Id } = seedExamAndCategories();
+    const res = await app.request(`/api/categories/${cat1Id}`, { method: 'DELETE' });
+    expect(res.status).toBe(204);
+    const check = db.prepare('SELECT id FROM categories WHERE id = ?').get(cat1Id);
+    expect(check).toBeUndefined();
+  });
+
+  it('存在しないカテゴリIDで404', async () => {
+    const res = await app.request('/api/categories/9999', { method: 'DELETE' });
+    expect(res.status).toBe(404);
+  });
+
+  it('数値でないIDで404', async () => {
+    const res = await app.request('/api/categories/abc', { method: 'DELETE' });
+    expect(res.status).toBe(404);
+  });
+});
