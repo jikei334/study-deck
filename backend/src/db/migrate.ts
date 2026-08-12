@@ -45,7 +45,8 @@ export function migrate(): void {
       name,
       description,
       content='terms',
-      content_rowid='id'
+      content_rowid='id',
+      tokenize='trigram'
     );
 
     CREATE TRIGGER IF NOT EXISTS terms_ai AFTER INSERT ON terms BEGIN

@@ -3,6 +3,10 @@ import { cors } from 'hono/cors';
 import exams from './routes/exams.js';
 import categories from './routes/categories.js';
 import stats from './routes/stats.js';
+import quiz from './routes/quiz.js';
+import terms from './routes/terms.js';
+import questions from './routes/questions.js';
+import importRouter from './routes/import.js';
 
 const app = new Hono();
 
@@ -17,6 +21,13 @@ app.use(
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
 app.route('/api/exams', exams);
 app.route('/api/exams/:examId/categories', categories);
+app.route('/api/categories', categories);
 app.route('/api/exams/:examId/stats', stats);
+app.route('/api/quiz', quiz);
+app.route('/api/exams/:examId/terms', terms);
+app.route('/api/terms', terms);
+app.route('/api/categories/:categoryId/questions', questions);
+app.route('/api/questions', questions);
+app.route('/api/exams/:examId/import', importRouter);
 
 export default app;

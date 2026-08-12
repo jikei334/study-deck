@@ -12,6 +12,6 @@ describe('App ルーティング', () => {
   it('/admin で AdminPage が表示される', () => {
     window.history.pushState({}, '', '/admin');
     render(<App />);
-    expect(screen.getByText('AdminPage')).toBeInTheDocument();
+    expect(screen.getByText('管理画面')).toBeInTheDocument();
   });
 });
