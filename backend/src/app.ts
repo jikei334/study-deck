@@ -6,6 +6,7 @@ import stats from './routes/stats.js';
 import quiz from './routes/quiz.js';
 import terms from './routes/terms.js';
 import questions from './routes/questions.js';
+import importRouter from './routes/import.js';
 
 const app = new Hono();
 
@@ -27,5 +28,6 @@ app.route('/api/exams/:examId/terms', terms);
 app.route('/api/terms', terms);
 app.route('/api/categories/:categoryId/questions', questions);
 app.route('/api/questions', questions);
+app.route('/api/exams/:examId/import', importRouter);
 
 export default app;

@@ -4,6 +4,8 @@ import { fetchExams, createExam, updateExam, deleteExam } from '../api/exams';
 import { fetchCategories, createCategory, updateCategory, deleteCategory } from '../api/categories';
 import { fetchQuestions, createQuestion, updateQuestion, deleteQuestion } from '../api/questions';
 import { fetchTerms, createTerm, updateTerm, deleteTerm } from '../api/terms';
+import { importQuestionsCSV, importTermsCSV } from '../api/import';
+import type { ImportResult } from '../api/import';
 import { useToast } from '../contexts/ToastContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ConfirmDialog from '../components/common/ConfirmDialog';
@@ -12,7 +14,7 @@ import TermForm from '../components/admin/TermForm';
 import type { Exam, Category, Question, Term } from '../types';
 import type { ChoiceInput } from '../api/questions';
 
-type Tab = 'exams' | 'categories' | 'questions' | 'terms';
+type Tab = 'exams' | 'categories' | 'questions' | 'terms' | 'import';
 
 function Header() {
   return (
@@ -60,6 +62,12 @@ export default function AdminPage() {
 
   const [showTermForm, setShowTermForm] = useState(false);
   const [editingTerm, setEditingTerm] = useState<Term | null>(null);
+
+  // インポート用状態
+  const [importType, setImportType] = useState<'questions' | 'terms'>('questions');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   // 試験一覧を初期ロード
   useEffect(() => {
@@ -191,11 +199,43 @@ export default function AdminPage() {
     );
   }
 
+  async function submitImport(e: React.FormEvent) {
+    e.preventDefault();
+    if (!importFile || selectedExamId === null) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const result = importType === 'questions'
+        ? await importQuestionsCSV(selectedExamId, importFile)
+        : await importTermsCSV(selectedExamId, importFile);
+      setImportResult(result);
+      if (result.imported > 0) {
+        showToast(`${result.imported}件インポートしました`);
+        // データを再ロード
+        const [cats, trms] = await Promise.all([
+          fetchCategories(selectedExamId),
+          fetchTerms(selectedExamId),
+        ]);
+        setCategories(cats);
+        setTerms(trms);
+        if (cats.length > 0) {
+          setSelectedCategoryId(cats[0].id);
+          fetchQuestions(cats[0].id).then(setQuestions).catch(() => {});
+        }
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'インポートに失敗しました');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const tabs: { key: Tab; label: string }[] = [
     { key: 'exams', label: '試験' },
     { key: 'categories', label: 'カテゴリ' },
     { key: 'questions', label: '問題' },
     { key: 'terms', label: '用語' },
+    { key: 'import', label: 'インポート' },
   ];
 
   const selectedExam = exams.find(e => e.id === selectedExamId);
@@ -504,6 +544,117 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ===== インポートタブ ===== */}
+            {tab === 'import' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">CSVインポート</h2>
+                  <p className="text-sm text-gray-500">CSVファイルから問題・用語を一括インポートします。</p>
+                </div>
+
+                {selectedExamId === null ? (
+                  <p className="text-sm text-gray-400 text-center py-8">対象試験を選択してください</p>
+                ) : (
+                  <form onSubmit={submitImport} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+                    {/* インポート種別 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">インポート種別</label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="radio"
+                            name="importType"
+                            value="questions"
+                            checked={importType === 'questions'}
+                            onChange={() => { setImportType('questions'); setImportResult(null); }}
+                          />
+                          問題
+                        </label>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="radio"
+                            name="importType"
+                            value="terms"
+                            checked={importType === 'terms'}
+                            onChange={() => { setImportType('terms'); setImportResult(null); }}
+                          />
+                          用語
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* フォーマット説明 */}
+                    <div className="bg-gray-50 rounded p-4 text-xs text-gray-600 space-y-1">
+                      {importType === 'questions' ? (
+                        <>
+                          <p className="font-semibold text-gray-700">問題CSVフォーマット（1行目はヘッダー）</p>
+                          <code className="block font-mono">categoryName,text,choice1,choice2,choice3,choice4,correctIndex,explanation</code>
+                          <ul className="list-disc list-inside mt-1 space-y-0.5">
+                            <li>correctIndex: 正解の選択肢番号（1〜4）</li>
+                            <li>explanation: 解説（省略可）</li>
+                            <li>カンマを含むフィールドは " で囲んでください</li>
+                          </ul>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-semibold text-gray-700">用語CSVフォーマット（1行目はヘッダー）</p>
+                          <code className="block font-mono">categoryName,name,description</code>
+                          <ul className="list-disc list-inside mt-1 space-y-0.5">
+                            <li>全フィールド必須</li>
+                            <li>カンマを含むフィールドは " で囲んでください</li>
+                          </ul>
+                        </>
+                      )}
+                    </div>
+
+                    {/* ファイル選択 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">CSVファイル</label>
+                      <input
+                        type="file"
+                        accept=".csv,text/csv"
+                        onChange={e => { setImportFile(e.target.files?.[0] ?? null); setImportResult(null); }}
+                        className="block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-4 file:rounded file:border file:border-gray-300 file:text-sm file:text-gray-600 file:cursor-pointer hover:file:bg-gray-50"
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={!importFile || importing}
+                        className="px-5 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {importing && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                        {importing ? 'インポート中...' : 'インポート実行'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* インポート結果 */}
+                {importResult && (
+                  <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-700">インポート結果</h3>
+                    <div className="flex gap-6 text-sm">
+                      <span className="text-green-700 font-medium">成功: {importResult.imported} 件</span>
+                      {importResult.errors.length > 0 && (
+                        <span className="text-red-600 font-medium">エラー: {importResult.errors.length} 件</span>
+                      )}
+                    </div>
+                    {importResult.errors.length > 0 && (
+                      <div className="border border-red-200 rounded divide-y divide-red-100">
+                        {importResult.errors.map((e, i) => (
+                          <div key={i} className="px-4 py-2 text-sm text-red-600">
+                            <span className="font-medium">行 {e.row}:</span> {e.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
